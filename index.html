@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>WSET L2 Wine Regions Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f5efe4; --ink:#2b2420; --muted:#7a6d62; --line:#dccfbb;
+    --sea:#e9eef0; --land:#e6dccb; --land-wine:#d8c6a8; --border:#bfae94;
+    --red:#8b2335; --white:#d9a92c; --both:#5c4a8a; --sweet:#c4651a;
+    --sparkling:#3f8fb8; --fortified:#5a3420; --rose:#e07a93; --tasted:#1f7a4d;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--paper);color:var(--ink);
+    font-family:Inter,system-ui,-apple-system,sans-serif;-webkit-tap-highlight-color:transparent}
+  body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+  header{padding:12px 14px 6px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+  h1{font-family:Fraunces,Georgia,serif;font-weight:650;font-size:20px;margin:0;line-height:1.1}
+  .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .toggles{display:flex;gap:6px;flex-shrink:0}
+  .tog{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 10px;font:500 12px Inter,sans-serif;color:var(--ink);cursor:pointer;white-space:nowrap}
+  .tog.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .row{display:flex;gap:6px;overflow-x:auto;padding:4px 14px 6px;scrollbar-width:none}
+  .row::-webkit-scrollbar{display:none}
+  .chip{flex-shrink:0;border:1px solid var(--line);background:#fffaf2;border-radius:999px;padding:5px 10px;font:500 12px Inter,sans-serif;color:var(--ink);cursor:pointer}
+  .chip.on{background:var(--red);border-color:var(--red);color:#fff}
+  .row.jump .chip{background:#fff}
+  .row.jump .chip.on{background:var(--ink);border-color:var(--ink)}
+  .rowlabel{flex-shrink:0;font-size:11px;color:var(--muted);align-self:center;text-transform:uppercase;letter-spacing:.06em}
+  #mapwrap{position:relative;flex:1;min-height:0;background:var(--sea);border-top:1px solid var(--line);border-bottom:1px solid var(--line);touch-action:none}
+  svg{display:block;width:100%;height:100%}
+  .country{fill:var(--land);stroke:var(--border);vector-effect:non-scaling-stroke;stroke-width:.5}
+  .country.wine{fill:var(--land-wine)}
+  .pin{cursor:pointer}
+  .pin .dot{stroke:#fff}
+  .pin .ring{fill:none;stroke:var(--tasted)}
+  .pin.dim{opacity:.12;pointer-events:none}
+  .pin.sel .dot{stroke:var(--ink)}
+  .lbl{font-weight:600;font-family:Inter,sans-serif;fill:var(--ink);paint-order:stroke;stroke:rgba(245,239,228,.9);pointer-events:none}
+  .lbl.dim{display:none}
+  .zoombtns{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px}
+  .zoombtns button{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff;font:600 18px Inter,sans-serif;color:var(--ink);cursor:pointer}
+  .hint{position:absolute;left:10px;bottom:10px;font-size:11px;color:var(--muted);background:rgba(255,255,255,.8);padding:4px 8px;border-radius:8px}
+  #legendBtn{position:absolute;left:10px;top:10px}
+  #legend{position:absolute;left:10px;top:48px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:12px;display:none;box-shadow:0 6px 20px rgba(0,0,0,.08)}
+  #legend.open{display:block}
+  #legend div{display:flex;align-items:center;gap:8px;margin:3px 0}
+  .sw{width:11px;height:11px;border-radius:50%;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+  .swring{width:13px;height:13px;border-radius:50%;border:2px solid var(--tasted)}
+  #card{position:fixed;left:0;right:0;bottom:0;max-height:62dvh;overflow-y:auto;background:#fff;border-radius:18px 18px 0 0;
+    box-shadow:0 -8px 30px rgba(0,0,0,.15);padding:16px 18px 22px;transform:translateY(105%);transition:transform .25s ease;z-index:10}
+  #card.open{transform:translateY(0)}
+  #card .grab{width:38px;height:4px;background:var(--line);border-radius:4px;margin:-6px auto 10px}
+  #card .close{position:absolute;right:12px;top:10px;border:none;background:var(--paper);width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;color:var(--ink)}
+  #card h2{font-family:Fraunces,Georgia,serif;font-weight:650;font-size:22px;margin:0 36px 2px 0}
+  .meta{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .stylepill{font-size:11px;font-weight:600;color:#fff;border-radius:999px;padding:2px 8px}
+  .sec{margin-top:12px}
+  .sec h3{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 5px;font-weight:600}
+  .sec p{margin:0;font-size:14px;line-height:1.45}
+  .gchips{display:flex;flex-wrap:wrap;gap:6px}
+  .tasted li{font-size:14px;margin:3px 0;line-height:1.35}
+  .tasted ul{margin:0;padding-left:18px}
+  .tasted{background:#eef6f1;border-radius:12px;padding:10px 12px}
+  .tasted h3{color:var(--tasted)}
+  .reveal{margin-top:12px;width:100%;padding:11px;border-radius:12px;border:none;background:var(--ink);color:#fff;font:600 14px Inter,sans-serif;cursor:pointer}
+  .quizq{font-size:14px;color:var(--muted);margin-top:4px}
+  .count{font-size:12px;color:var(--muted);padding:0 14px 8px;display:flex;align-items:center;gap:8px;min-height:30px}
+  .count .gp{border:none;background:var(--red);color:#fff;border-radius:999px;padding:4px 10px;font:600 12px Inter,sans-serif;cursor:pointer}
+  details.acc{margin-top:12px;border:1px solid var(--line);border-radius:12px;background:#fffdf9}
+  details.acc>summary{list-style:none;cursor:pointer;padding:11px 12px;font-weight:600;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+  details.acc>summary::-webkit-details-marker{display:none}
+  details.acc>summary::after{content:"＋";color:var(--muted);font-weight:500}
+  details.acc[open]>summary::after{content:"－"}
+  details.acc .in{padding:0 12px 12px}
+  details.acc.tasted{background:#f1f8f4;border-color:#cfe6d9}
+  details.acc.tasted>summary{color:var(--tasted)}
+  .wine{border-top:1px solid #d9eadf;padding:10px 0 2px}
+  .wine:first-child{border-top:none;padding-top:0}
+  .wine .wn{font-weight:600;font-size:14px;margin-bottom:4px}
+  .sat{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:13px;line-height:1.4}
+  .sat b{font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding-top:2px}
+  .wc{font-size:13px;line-height:1.45;margin-top:6px;color:#3d342e;font-style:italic}
+  .acc ul{margin:0;padding-left:18px}
+  .acc li{font-size:14px;line-height:1.45;margin:4px 0}
+  .food p{font-size:14px;line-height:1.45;margin:4px 0}
+  .tagg{font-weight:600}
+  .gprof{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:14px;line-height:1.45;margin-top:12px}
+  .gprof b{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding-top:3px}
+  .rlist{display:flex;flex-wrap:wrap;gap:6px}
+  .back{border:none;background:none;color:var(--muted);font:500 13px Inter,sans-serif;padding:0;margin-bottom:6px;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Wine regions</h1>
+    <div class="sub">WSET L2 · from your course notes</div>
+  </div>
+  <div class="toggles">
+    <button class="tog" id="tTasted" aria-pressed="false">✓ Tasted</button>
+    <button class="tog" id="tQuiz" aria-pressed="false">Quiz me</button>
+  </div>
+</header>
+
+<div class="row jump" id="jumps"><span class="rowlabel">Go to</span></div>
+
+<div id="mapwrap">
+  <svg id="map"></svg>
+  <button class="tog" id="legendBtn">Key</button>
+  <div id="legend"></div>
+  <div class="zoombtns">
+    <button id="zin" aria-label="Zoom in">+</button>
+    <button id="zout" aria-label="Zoom out">−</button>
+  </div>
+  <div class="hint" id="hint">Pinch or use the buttons to zoom</div>
+</div>
+
+<div class="row" id="grapes"><span class="rowlabel">Grape</span></div>
+<div class="count" id="count"></div>
+
+<div id="card" role="dialog" aria-modal="false">
+  <div class="grab"></div>
+  <button class="close" id="cardClose" aria-label="Close">✕</button>
+  <div id="cardBody"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="regions.js"></script>
+<script src="extras.js"></script>
+<script>
+(function(){
+  const R = window.REGIONS;
+  const WINES = window.WINES||{}, TRAPS = window.TRAPS||{}, FOOD = window.FOOD||{}, GRAPES = window.GRAPES||{}, ALIAS = window.GRAPE_ALIAS||{};
+  R.forEach(r=>{
+    r.grapes = [...new Set(r.grapes.map(g=>ALIAS[g]||g))];
+    r.wines = WINES[r.id]||[];
+    r.tasted = r.wines.map(w=>w.n);
+  });
+  const STYLE = {
+    red:{label:"Mostly red", c:"var(--red)"},
+    white:{label:"Mostly white", c:"var(--white)"},
+    both:{label:"Red & white", c:"var(--both)"},
+    rose:{label:"Rosé", c:"var(--rose)"},
+    sweet:{label:"Sweet", c:"var(--sweet)"},
+    sparkling:{label:"Sparkling", c:"var(--sparkling)"},
+    fortified:{label:"Fortified", c:"var(--fortified)"}
+  };
+  const WINE_COUNTRIES = new Set(["France","Germany","Italy","Spain","Portugal","Hungary","United States of America","Chile","Argentina","South Africa","Australia","New Zealand"]);
+
+  const state = { grape:null, tasted:false, quiz:false, sel:null, revealed:false, k:1 };
+
+  // Legend
+  const leg = document.getElementById("legend");
+  leg.innerHTML = Object.values(STYLE).map(s=>`<div><span class="sw" style="background:${s.c}"></span>${s.label}</div>`).join("")
+    + `<div><span class="swring"></span>Tasted in class</div>`;
+  document.getElementById("legendBtn").onclick = e => { leg.classList.toggle("open"); e.currentTarget.classList.toggle("on"); };
+
+  // Map setup
+  const wrap = document.getElementById("mapwrap");
+  const svg = d3.select("#map");
+  const g = svg.append("g");
+  const gLand = g.append("g"), gPins = g.append("g"), gLbl = g.append("g");
+  let W = wrap.clientWidth, H = wrap.clientHeight;
+  const projection = d3.geoNaturalEarth1();
+  const path = d3.geoPath(projection);
+  const fitBox = {type:"MultiPoint", coordinates:[[-165,72],[180,72],[-165,-50],[180,-50],[0,-50],[0,72]]};
+  projection.fitExtent([[6,6],[W-6,H-6]], fitBox);
+
+  const zoom = d3.zoom().scaleExtent([1,160])
+    .translateExtent([[-W*0.25,-H*0.25],[W*1.25,H*1.25]])
+    .on("zoom", ev => { g.attr("transform", ev.transform); state.k = ev.transform.k; resize(); });
+  svg.call(zoom).on("dblclick.zoom", null);
+
+  // Pins
+  R.forEach(r => { r.xy = projection([r.lon, r.lat]); });
+  const pins = gPins.selectAll("g.pin").data(R).join("g")
+    .attr("class","pin").attr("transform", d=>`translate(${d.xy[0]},${d.xy[1]})`)
+    .on("click", (ev,d) => { ev.stopPropagation(); select(d); });
+  pins.append("circle").attr("class","hit").attr("fill","transparent");
+  pins.filter(d=>d.tasted.length).append("circle").attr("class","ring");
+  pins.append("circle").attr("class","dot").attr("fill", d=>STYLE[d.style].c);
+  const labels = gLbl.selectAll("text").data(R).join("text").attr("class","lbl")
+    .attr("x", d=>d.xy[0]).attr("y", d=>d.xy[1]).text(d=>d.name);
+
+  function resize(){
+    const k = state.k;
+    const rs = Math.min(7, 4.5 + Math.log2(k)*0.5);
+    pins.select(".dot").attr("r", rs/k).attr("stroke-width", 1.4/k);
+    pins.select(".ring").attr("r", (rs+3.2)/k).attr("stroke-width", 2/k);
+    pins.select(".hit").attr("r", 14/k);
+    labels.style("font-size", (11/k)+"px").attr("stroke-width", 3/k).attr("dx", 9/k).attr("dy", 4/k)
+      .style("display", d => (state.quiz || k < 3.2 || isDim(d)) ? "none" : null);
+  }
+
+  // Land
+  fetch("world.json").then(r=>r.json()).then(topo=>{
+    const countries = topojson.feature(topo, topo.objects.countries).features
+      .filter(f=>f.properties.name !== "Antarctica");
+    gLand.selectAll("path").data(countries).join("path")
+      .attr("class", d=>"country" + (WINE_COUNTRIES.has(d.properties.name) ? " wine":""))
+      .attr("d", path);
+  });
+
+  // Zoom helpers
+  function zoomToRegions(list, pad){
+    if(!list.length) return;
+    const xs = list.map(r=>r.xy[0]), ys = list.map(r=>r.xy[1]);
+    let x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
+    const p = pad ?? 30;
+    const bw = Math.max(x1-x0, 4), bh = Math.max(y1-y0, 4);
+    const k = Math.min(160, 0.82/Math.max(bw/(W-p*2), bh/(H-p*2)));
+    const cx = (x0+x1)/2, cy = (y0+y1)/2;
+    svg.transition().duration(650).call(zoom.transform, d3.zoomIdentity.translate(W/2 - k*cx, H/2 - k*cy).scale(k));
+  }
+  function zoomWorld(){ svg.transition().duration(650).call(zoom.transform, d3.zoomIdentity); }
+
+  const JUMPS = [
+    ["World", null],
+    ["France", r=>r.country==="France"],
+    ["Burgundy & Rhône", r=>["chablis","cote-de-nuits","cote-de-beaune","maconnais","beaujolais","northern-rhone","southern-rhone"].includes(r.id)],
+    ["Bordeaux", r=>["bordeaux-left","bordeaux-right","pessac","sauternes"].includes(r.id)],
+    ["Germany & Alsace", r=>r.country==="Germany"||r.id==="alsace"],
+    ["Italy", r=>r.country==="Italy"],
+    ["Spain & Portugal", r=>r.country==="Spain"||r.country==="Portugal"],
+    ["Tokaj", r=>r.id==="tokaj"],
+    ["USA", r=>r.country==="USA"],
+    ["Chile & Argentina", r=>r.country==="Chile"||r.country==="Argentina"],
+    ["South Africa", r=>r.country==="South Africa"],
+    ["Australia", r=>r.country==="Australia"],
+    ["South Australia", r=>["barossa","eden","clare","mclaren","adelaide-hills"].includes(r.id)],
+    ["New Zealand", r=>r.country==="New Zealand"],
+  ];
+  const jumps = document.getElementById("jumps");
+  JUMPS.forEach(([label, fn])=>{
+    const b = document.createElement("button"); b.className="chip"; b.textContent=label;
+    b.onclick = ()=>{
+      jumps.querySelectorAll(".chip").forEach(c=>c.classList.remove("on")); b.classList.add("on");
+      if(!fn) return zoomWorld();
+      const list = R.filter(fn);
+      zoomToRegions(list, list.length===1 ? 160 : 30);
+    };
+    jumps.appendChild(b);
+  });
+  document.getElementById("zin").onclick = ()=> svg.transition().duration(300).call(zoom.scaleBy, 2);
+  document.getElementById("zout").onclick = ()=> svg.transition().duration(300).call(zoom.scaleBy, 0.5);
+
+  // Grape filter
+  const allGrapes = [...new Set(R.flatMap(r=>r.grapes))].sort((a,b)=>a.localeCompare(b));
+  const gRow = document.getElementById("grapes");
+  const allBtn = document.createElement("button"); allBtn.className="chip on"; allBtn.textContent="All";
+  allBtn.onclick = ()=> setGrape(null); gRow.appendChild(allBtn);
+  const grapeBtns = {};
+  allGrapes.forEach(gr=>{
+    const b=document.createElement("button"); b.className="chip"; b.textContent=gr;
+    b.onclick = ()=> setGrape(state.grape===gr ? null : gr);
+    gRow.appendChild(b); grapeBtns[gr]=b;
+  });
+  function setGrape(gr, zoomIn){
+    state.grape = gr;
+    allBtn.classList.toggle("on", !gr);
+    Object.entries(grapeBtns).forEach(([k,b])=>b.classList.toggle("on", k===gr));
+    if(gr) grapeBtns[gr].scrollIntoView({inline:"center", block:"nearest", behavior:"smooth"});
+    apply();
+    if(gr && zoomIn){
+      closeCard();
+      jumps.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));
+      const list = R.filter(r=>r.grapes.includes(gr));
+      zoomToRegions(list, list.length===1 ? 160 : 40);
+    }
+  }
+
+  function isDim(d){
+    if(state.grape && !d.grapes.includes(state.grape)) return true;
+    if(state.tasted && !d.tasted.length) return true;
+    return false;
+  }
+  function apply(){
+    pins.classed("dim", isDim);
+    resize();
+    const n = R.filter(d=>!isDim(d)).length;
+    const parts = [];
+    if(state.grape) parts.push(state.grape);
+    if(state.tasted) parts.push("tasted in class");
+    const cnt = document.getElementById("count");
+    cnt.innerHTML = `<span>${n} region${n===1?"":"s"}` + (parts.length ? ` · ${esc(parts.join(" · "))}` : " · all") + (state.quiz ? " · names hidden" : "") + `</span>`
+      + (state.grape && GRAPES[state.grape] ? `<button class="gp" id="gpBtn">${esc(state.grape)} profile ›</button>` : "");
+    const gp = document.getElementById("gpBtn"); if(gp) gp.onclick = ()=> openGrape(state.grape);
+  }
+
+  const tT = document.getElementById("tTasted"), tQ = document.getElementById("tQuiz");
+  tT.onclick = ()=>{ state.tasted=!state.tasted; tT.classList.toggle("on",state.tasted); tT.setAttribute("aria-pressed",state.tasted); apply(); };
+  tQ.onclick = ()=>{ state.quiz=!state.quiz; tQ.classList.toggle("on",state.quiz); tQ.setAttribute("aria-pressed",state.quiz);
+    state.revealed=false; if(state.sel) render(state.sel); apply(); };
+
+  // Card
+  const card = document.getElementById("card"), body = document.getElementById("cardBody");
+  function select(d){
+    state.sel = d; state.revealed = false;
+    pins.classed("sel", p=>p===d);
+    render(d); card.classList.add("open"); card.scrollTop = 0;
+  }
+  function closeCard(){ card.classList.remove("open"); pins.classed("sel", false); state.sel=null; }
+  document.getElementById("cardClose").onclick = closeCard;
+  svg.on("click", closeCard);
+
+  function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+  function wineHTML(w){
+    const sat = w.a ? `<div class="sat"><b>Look</b><span>${esc(w.a)}</span><b>Nose</b><span>${esc(w.nose)}</span><b>Palate</b><span>${esc(w.p)}</span><b>Quality</b><span>${esc(w.q)}</span></div>` : "";
+    return `<div class="wine"><div class="wn">${esc(w.n)}</div>${sat}${w.c ? `<div class="wc">${esc(w.c)}</div>`:""}</div>`;
+  }
+  function openGrape(name, from){
+    const gp = GRAPES[name];
+    const list = R.filter(r=>r.grapes.includes(name));
+    body.innerHTML = `
+      ${from ? `<button class="back" id="backBtn">‹ Back to ${esc(from.name)}</button>` : ""}
+      <h2>${esc(name)}</h2>
+      <div class="meta"><span>${gp ? esc(gp.type) + " grape" : "Grape"}</span><span>·</span><span>${list.length} region${list.length===1?"":"s"} on the map</span></div>
+      ${gp ? `<div class="gprof"><b>Structure</b><span>${esc(gp.s)}</span><b>Flavours</b><span>${esc(gp.f)}</span><b>Climate</b><span>${esc(gp.cl)}</span><b>Remember</b><span>${esc(gp.k)}</span></div>` : ""}
+      <div class="sec"><h3>Where it grows</h3><div class="rlist">${list.map(r=>`<button class="chip" data-r="${r.id}">${esc(state.quiz ? r.country : r.name)}</button>`).join("")}</div></div>
+      <button class="reveal" id="showGrape">Show ${esc(name)} on the map</button>`;
+    pins.classed("sel", false);
+    card.classList.add("open"); card.scrollTop = 0;
+    if(from) document.getElementById("backBtn").onclick = ()=> select(from);
+    document.getElementById("showGrape").onclick = ()=> setGrape(name, true);
+    body.querySelectorAll("[data-r]").forEach(b=> b.onclick = ()=>{
+      const r = R.find(x=>x.id===b.dataset.r); select(r); zoomToRegions([r], 160);
+    });
+  }
+  function render(d){
+    const st = STYLE[d.style];
+    if(state.quiz && !state.revealed){
+      body.innerHTML = `
+        <h2>Which region is this?</h2>
+        <div class="meta"><span>${esc(d.country)}</span><span class="stylepill" style="background:${st.c}">${st.label}</span></div>
+        <div class="quizq">Say the region, its main grapes and the climate out loud, then check.</div>
+        <button class="reveal" id="revealBtn">Reveal</button>`;
+      document.getElementById("revealBtn").onclick = ()=>{ state.revealed = true; render(d); };
+      return;
+    }
+    const grapes = d.grapes.length
+      ? d.grapes.map(gr=>`<button class="chip${state.grape===gr?" on":""}" data-g="${esc(gr)}">${esc(gr)}</button>`).join("")
+      : `<span style="font-size:14px">Not listed in your notes</span>`;
+    body.innerHTML = `
+      <h2>${esc(d.name)}</h2>
+      <div class="meta"><span>${esc(d.country)}</span><span>·</span><span>${esc(d.climate)}</span>
+        <span class="stylepill" style="background:${st.c}">${st.label}</span></div>
+      <div class="sec"><h3>Grapes</h3><div class="gchips">${grapes}</div></div>
+      <div class="sec"><h3>On the label</h3><p>${esc(d.labels)}</p></div>
+      <div class="sec"><h3>Remember</h3><p>${esc(d.notes)}</p></div>
+      ${d.wines.length ? `<details class="acc tasted"><summary>✓ Tasted in class (${d.wines.length})</summary><div class="in">${d.wines.map(wineHTML).join("")}</div></details>` : ""}
+      ${(TRAPS[d.id]||[]).length ? `<details class="acc"><summary>Exam traps & tutor tips</summary><div class="in"><ul>${TRAPS[d.id].map(t=>`<li>${esc(t)}</li>`).join("")}</ul></div></details>` : ""}
+      ${FOOD[d.id] ? `<details class="acc food"><summary>Food pairing</summary><div class="in"><p><span class="tagg">Works:</span> ${esc(FOOD[d.id].g)}</p>${FOOD[d.id].x && FOOD[d.id].x!=="—" ? `<p><span class="tagg">Avoid:</span> ${esc(FOOD[d.id].x)}</p>`:""}</div></details>` : ""}
+      ${d.grapes.length ? `<div class="sec" style="font-size:12px;color:var(--muted)">Tap a grape for its profile and everywhere it grows.</div>` : ""}`;
+    body.querySelectorAll("[data-g]").forEach(b=> b.onclick = ()=> openGrape(b.dataset.g, d));
+  }
+
+  // Resize handling
+  window.addEventListener("resize", ()=>{
+    const nw = wrap.clientWidth, nh = wrap.clientHeight;
+    if(Math.abs(nw-W)<2 && Math.abs(nh-H)<2) return;
+    W=nw; H=nh;
+    projection.fitExtent([[6,6],[W-6,H-6]], fitBox);
+    R.forEach(r => { r.xy = projection([r.lon, r.lat]); });
+    pins.attr("transform", d=>`translate(${d.xy[0]},${d.xy[1]})`);
+    labels.attr("x", d=>d.xy[0]).attr("y", d=>d.xy[1]);
+    gLand.selectAll("path").attr("d", path);
+    zoom.translateExtent([[-W*0.25,-H*0.25],[W*1.25,H*1.25]]);
+    svg.call(zoom.transform, d3.zoomIdentity);
+  });
+
+  setTimeout(()=>{ const h=document.getElementById("hint"); if(h) h.style.display="none"; }, 5000);
+  apply();
+})();
+</script>
+</body>
+</html>
