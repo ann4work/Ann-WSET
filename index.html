@@ -48,7 +48,8 @@
   #legendBtn{position:absolute;left:10px;top:10px}
   #legend{position:absolute;left:10px;top:48px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:12px;display:none;box-shadow:0 6px 20px rgba(0,0,0,.08)}
   #legend.open{display:block}
-  #legend div{display:flex;align-items:center;gap:8px;margin:3px 0}
+  #legend{max-width:250px;max-height:calc(100% - 60px);overflow-y:auto}
+  #legend>div:not(.layers){display:flex;align-items:center;gap:8px;margin:3px 0}
   .sw{width:11px;height:11px;border-radius:50%;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
   .swring{width:13px;height:13px;border-radius:50%;border:2px solid var(--tasted)}
   #card{position:fixed;left:0;right:0;bottom:0;max-height:62dvh;overflow-y:auto;background:#fff;border-radius:18px 18px 0 0;
@@ -92,6 +93,38 @@
   .gprof{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:14px;line-height:1.45;margin-top:12px}
   .gprof b{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding-top:3px}
   .rlist{display:flex;flex-wrap:wrap;gap:6px}
+  .borders path{fill:none;stroke:var(--border);vector-effect:non-scaling-stroke;stroke-width:.5}
+  .relief{pointer-events:none}
+  .ctr{fill:none;stroke:#7a4f28;vector-effect:non-scaling-stroke;stroke-width:.55;opacity:.5;pointer-events:none}
+  .ctr.m1000,.ctr.m2000{stroke-width:.85;opacity:.6}
+  .clbl{font-family:Inter,sans-serif;font-weight:600;fill:#6a4524;paint-order:stroke;stroke:rgba(250,244,230,.9);pointer-events:none}
+  .hramp{height:10px;border-radius:3px;margin:6px 0 2px;background:linear-gradient(90deg,#d6e0c4 0%,#e8e5c2 12.5%,#ecd9a8 25%,#e2c48c 40%,#dab77f 50%,#c69b69 62.5%,#b38760 75%,#a07a60 83%,#aca098 97%,#b9afa8 100%)}
+  .hticks{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted)}
+  .belt{fill:#c9962a;opacity:.08;pointer-events:none}
+  .lat{fill:none;stroke:#8aa0ab;vector-effect:non-scaling-stroke;stroke-width:.6;stroke-dasharray:2 3;pointer-events:none}
+  .lat.major{stroke:#5f7783;stroke-width:.8;stroke-dasharray:none}
+  .lat.edge{stroke:#a8791c;stroke-width:1.1;stroke-dasharray:6 3}
+  .axis text{font:600 10px Inter,sans-serif;fill:#4d6470;paint-order:stroke;stroke:rgba(240,243,244,.92);stroke-width:3px;pointer-events:none}
+  .axis text.edge{fill:#8a6214}
+  .river{fill:none;stroke:#4f88ad;vector-effect:non-scaling-stroke;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;opacity:.9;pointer-events:none}
+  .rlbl{font-family:Inter,sans-serif;font-style:italic;font-weight:500;fill:#2f6489;paint-order:stroke;stroke:rgba(255,255,255,.85);pointer-events:none}
+  .mtn{cursor:pointer}
+  .mtn text{font-family:Inter,sans-serif;font-weight:600;fill:#6a4524;paint-order:stroke;stroke:rgba(255,250,240,.9)}
+  .mtn .tri{fill:#8a5a2e;stroke:#fff}
+  .layers{border-top:1px solid var(--line);margin-top:8px;padding-top:8px}
+  .layers label{display:flex;align-items:center;gap:8px;margin:5px 0;cursor:pointer;min-height:26px}
+  .layers input{width:18px;height:18px;accent-color:var(--ink);margin:0}
+  .ltitle{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+  .rule{font-size:11.5px;color:var(--muted);line-height:1.4;max-width:220px;margin-top:6px}
+  .latrow{display:flex;align-items:center;gap:12px}
+  .latval{font-weight:600;font-size:16px;white-space:nowrap;min-width:64px}
+  .latbar{position:relative;flex:1;height:22px}
+  .latbar .track{position:absolute;left:0;right:0;top:9px;height:4px;border-radius:4px;background:#ece5d8}
+  .latbar .beltz{position:absolute;top:9px;height:4px;background:#e2c27a;border-radius:4px}
+  .latbar .dotl{position:absolute;top:4px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--ink);border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.2)}
+  .latbar .tk{position:absolute;top:16px;font-size:10px;color:var(--muted);transform:translateX(-50%)}
+  .latnote{font-size:13px;color:#3d342e;margin-top:6px;line-height:1.4}
+  .srcnote{font-size:11.5px;color:var(--muted);margin-top:4px}
   .back{border:none;background:none;color:var(--muted);font:500 13px Inter,sans-serif;padding:0;margin-bottom:6px;cursor:pointer}
 </style>
 </head>
@@ -133,6 +166,7 @@
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 <script src="regions.js"></script>
 <script src="extras.js"></script>
+<script src="terrain.js"></script>
 <script>
 (function(){
   const R = window.REGIONS;
@@ -153,19 +187,36 @@
   };
   const WINE_COUNTRIES = new Set(["France","Germany","Italy","Spain","Portugal","Hungary","United States of America","Chile","Argentina","South Africa","Australia","New Zealand"]);
 
-  const state = { grape:null, tasted:false, quiz:false, sel:null, revealed:false, k:1 };
+  const state = { grape:null, tasted:false, quiz:false, sel:null, revealed:false, k:1, t:d3.zoomIdentity };
+  const LAYERS = {terrain:true, contours:true, rivers:true, mountains:true, lat:true};
+  try{ Object.assign(LAYERS, JSON.parse(localStorage.getItem("wsetLayers")||"{}")); }catch(e){}
 
   // Legend
   const leg = document.getElementById("legend");
   leg.innerHTML = Object.values(STYLE).map(s=>`<div><span class="sw" style="background:${s.c}"></span>${s.label}</div>`).join("")
-    + `<div><span class="swring"></span>Tasted in class</div>`;
+    + `<div><span class="swring"></span>Tasted in class</div>`
+    + `<div class="layers"><div class="ltitle">Show on map</div>`
+    + [["terrain","Terrain shading and height colours"],["contours","Height lines (contours)"],["mountains","Mountain names"],["rivers","Rivers"],["lat","Latitude lines"]]
+        .map(([k,l])=>`<label><input type="checkbox" data-layer="${k}"${LAYERS[k]?" checked":""}>${l}</label>`).join("")
+    + `<div class="rule" style="margin-top:8px">Height above sea level</div><div class="hramp"></div><div class="hticks"><span>0</span><span>500</span><span>1,000</span><span>2,000</span><span>3,500+ m</span></div>`
+    + `<div class="rule">Zoomed out, heights are averaged over about 9 km, so narrow hills show lower than they are. Zoom in on a wine area and the map switches to about 300 m detail, with height lines every 500 m, then every 100 m as you zoom closer. The gold dashed lines mark 30° and 50°, where most vineyards sit. Tutor's rule of thumb: every 100 m up is about 0.6°C cooler, so altitude can do what latitude does.</div><div class="rule" style="font-size:10.5px">Elevation: NOAA ETOPO 2022; Terrain Tiles on AWS Open Data (from SRTM and other public surveys); Natural Earth.</div></div>`;
+  leg.querySelectorAll("[data-layer]").forEach(cb=> cb.onchange = ()=>{
+    LAYERS[cb.dataset.layer] = cb.checked;
+    try{ localStorage.setItem("wsetLayers", JSON.stringify(LAYERS)); }catch(e){}
+    resize();
+  });
+  leg.addEventListener("click", e=> e.stopPropagation());
   document.getElementById("legendBtn").onclick = e => { leg.classList.toggle("open"); e.currentTarget.classList.toggle("on"); };
 
   // Map setup
   const wrap = document.getElementById("mapwrap");
   const svg = d3.select("#map");
   const g = svg.append("g");
-  const gLand = g.append("g"), gPins = g.append("g"), gLbl = g.append("g");
+  const gLand = g.append("g"), gRelief = g.append("g").attr("class","relief"), gDetail = g.append("g").attr("class","relief"), gBorder = g.append("g").attr("class","borders"),
+        gCtr = g.append("g"), gCLbl = g.append("g"), gCtrD = g.append("g"), gCLblD = g.append("g"), gBelt = g.append("g"), gLat = g.append("g"), gRiver = g.append("g"), gRLbl = g.append("g"),
+        gMtn = g.append("g"), gPins = g.append("g"), gLbl = g.append("g");
+  const gAxis = svg.append("g").attr("class","axis");
+  const MTNS = window.MOUNTAINS||[], LAND = window.LAND||{};
   let W = wrap.clientWidth, H = wrap.clientHeight;
   const projection = d3.geoNaturalEarth1();
   const path = d3.geoPath(projection);
@@ -174,7 +225,7 @@
 
   const zoom = d3.zoom().scaleExtent([1,160])
     .translateExtent([[-W*0.25,-H*0.25],[W*1.25,H*1.25]])
-    .on("zoom", ev => { g.attr("transform", ev.transform); state.k = ev.transform.k; resize(); });
+    .on("zoom", ev => { g.attr("transform", ev.transform); state.k = ev.transform.k; state.t = ev.transform; resize(); });
   svg.call(zoom).on("dblclick.zoom", null);
 
   // Pins
@@ -196,6 +247,34 @@
     pins.select(".hit").attr("r", 14/k);
     labels.style("font-size", (11/k)+"px").attr("stroke-width", 3/k).attr("dx", 9/k).attr("dy", 4/k)
       .style("display", d => (state.quiz || k < 3.2 || isDim(d)) ? "none" : null);
+    // terrain layers
+    gLat.selectAll("path").style("display", d => !LAYERS.lat ? "none" : (d%10===0 || (d%5===0 && k>=5) || k>=18) ? null : "none");
+    gBelt.style("display", LAYERS.lat ? null : "none");
+    gRelief.style("display", LAYERS.terrain ? null : "none");
+    gDetail.style("display", LAYERS.terrain ? null : "none");
+    updateDetail();
+    gRiver.style("display", LAYERS.rivers ? null : "none");
+    const cmin = {250:12, 500:6, 1000:3, 1500:6, 2000:3, 3000:3};
+    const closeUp = k >= 12 && DETAIL.some(inView);
+    gCtr.style("display", LAYERS.contours && !closeUp ? null : "none");
+    gCtrD.style("display", LAYERS.contours && k >= 12 ? null : "none");
+    gCtrD.selectAll("path").style("display", d => (d.properties.m % 500 === 0 || k >= 55) ? null : "none");
+    gCLblD.style("display", LAYERS.contours && k >= 45 ? null : "none");
+    gCLblD.selectAll("text").style("font-size", (9/k)+"px").attr("stroke-width", 2.5/k)
+      .style("display", l => (l.m % 500 === 0 || k >= 90) ? null : "none");
+    gCtr.selectAll("path").style("display", d => k >= cmin[d.properties.m] ? null : "none");
+    gCLbl.style("display", LAYERS.contours && !closeUp && k >= 12 ? null : "none");
+    gCLbl.selectAll("text").style("font-size", (9/k)+"px").attr("stroke-width", 2.5/k)
+      .style("display", d => k >= Math.max(12, cmin[d.m]) ? null : "none");
+    gRLbl.style("display", LAYERS.rivers ? null : "none");
+    gRLbl.selectAll("text").style("font-size", (10/k)+"px").attr("stroke-width", 2.5/k).attr("dx", 4/k).attr("dy", -4/k)
+      .style("display", k>=5 ? null : "none");
+    gMtn.style("display", LAYERS.mountains ? null : "none");
+    mtns.style("display", d => k>=d.k ? null : "none");
+    mtns.select(".tri").attr("d", `M0,${-5/k}L${4.5/k},${3/k}L${-4.5/k},${3/k}Z`).attr("stroke-width", 0.8/k);
+    mtns.select("text").style("font-size", (Math.min(12, 10 + Math.log2(k)*0.3)/k)+"px").attr("stroke-width", 3/k).attr("dx", 7/k).attr("dy", 4/k);
+    mtns.select(".hit").attr("r", 12/k);
+    drawAxis();
   }
 
   // Land
@@ -205,7 +284,134 @@
     gLand.selectAll("path").data(countries).join("path")
       .attr("class", d=>"country" + (WINE_COUNTRIES.has(d.properties.name) ? " wine":""))
       .attr("d", path);
+    gBorder.selectAll("path").data(countries).join("path").attr("d", path);
   });
+
+  // Shaded relief (Natural Earth), pre-projected into the same projection
+  let TILES = [];
+  fetch("relief/tiles.json").then(r=>r.json()).then(t=>{
+    TILES = t;
+    gRelief.selectAll("image").data(TILES).join("image")
+      .attr("href", d=>d.src).attr("preserveAspectRatio","none");
+    placeRelief();
+  }).catch(()=>{});
+  function placeRelief(){
+    const K = projection.scale(), [tx,ty] = projection.translate();
+    gDetail.selectAll("image")
+      .attr("x", d=>tx + d.x0*K).attr("y", d=>ty - d.y1*K)
+      .attr("width", d=>d.w*K).attr("height", d=>d.h*K);
+    gRelief.selectAll("image")
+      .attr("x", d=>tx + d.x0*K).attr("y", d=>ty - d.y1*K)
+      .attr("width", d=>d.w*K).attr("height", d=>d.h*K);
+  }
+
+  // Latitude lines: parallels are straight in this projection
+  const LATS = d3.range(-60, 76, 1);
+  function latY(lat){ return projection([0,lat])[1]; }
+  function drawLat(){
+    const xl = projection([-180,0])[0], xr = projection([180,0])[0];
+    gLat.selectAll("path").data(LATS).join("path")
+      .attr("class", d=> "lat" + (Math.abs(d)===30||Math.abs(d)===50 ? " edge" : d%10===0 ? " major" : ""))
+      .attr("d", d=>{ const y = latY(d); return `M${xl},${y}H${xr}`; });
+    gBelt.selectAll("rect").data([[30,50],[-50,-30]]).join("rect").attr("class","belt")
+      .attr("x", xl).attr("width", xr-xl)
+      .attr("y", d=>latY(d[1])).attr("height", d=>latY(d[0])-latY(d[1]));
+  }
+  function drawAxis(){
+    if(!LAYERS.lat){ gAxis.selectAll("text").remove(); return; }
+    const k = state.k, t = state.t;
+    const step = k>=18 ? 1 : k>=5 ? 5 : 10;
+    const vis = LATS.filter(l=>l%step===0).map(l=>({l, y:t.applyY(latY(l))})).filter(d=>d.y>58 && d.y<H-6);
+    gAxis.selectAll("text").data(vis, d=>d.l).join("text")
+      .attr("class", d=> Math.abs(d.l)===30||Math.abs(d.l)===50 ? "edge" : null)
+      .attr("x", 6).attr("y", d=>d.y-3).attr("text-anchor","start")
+      .text(d=> d.l===0 ? "Equator" : Math.abs(d.l)+"°"+(d.l>0?"N":"S"));
+  }
+
+  // Close-up relief and height lines for each wine area (Terrain Tiles, ~300 m), loaded only when zoomed in
+  let DETAIL = [];
+  fetch("relief/detail.json").then(r=>r.json()).then(t=>{
+    DETAIL = t;
+    gDetail.selectAll("image").data(DETAIL).join("image").attr("preserveAspectRatio","none");
+    placeRelief(); resize();
+  }).catch(()=>{});
+  function tileRect(d){
+    const K = projection.scale(), [tx,ty] = projection.translate();
+    return [tx + d.x0*K, ty - d.y1*K, d.w*K, d.h*K];
+  }
+  function inView(d){
+    const t = state.t, [x,y,w,h] = tileRect(d);
+    const vx0 = t.invertX(0), vx1 = t.invertX(W), vy0 = t.invertY(0), vy1 = t.invertY(H);
+    return x < vx1 && x+w > vx0 && y < vy1 && y+h > vy0;
+  }
+  function updateDetail(){
+    const k = state.k;
+    if(LAYERS.terrain && k >= 8){
+      gDetail.selectAll("image").each(function(d){ if(!d.loaded && inView(d)){ d.loaded = true; this.setAttribute("href", d.src); } });
+    }
+    if(LAYERS.contours && k >= 12){
+      DETAIL.forEach(d=>{
+        if(d.cLoaded || !inView(d)) return;
+        d.cLoaded = true;
+        fetch(d.contours).then(r=>r.json()).then(fc=>{
+          const gp = gCtrD.append("g");
+          gp.selectAll("path").data(fc.features).join("path").attr("class", f=>"ctr m"+f.properties.m).attr("d", path);
+          // one label per height per ~35 km square, so the map doesn't fill with numbers
+          const seen = new Set(), lab = [];
+          fc.features.filter(f=>f.geometry.coordinates.length>=20).forEach(f=>{
+            const c = f.geometry.coordinates[Math.floor(f.geometry.coordinates.length/2)];
+            const key = f.properties.m + ":" + Math.floor(c[0]/0.45) + ":" + Math.floor(c[1]/0.32);
+            if(seen.has(key)) return; seen.add(key);
+            lab.push({m:f.properties.m, lon:c[0], lat:c[1]});
+          });
+          gCLblD.append("g").selectAll("text").data(lab).join("text").attr("class","clbl").attr("text-anchor","middle")
+            .text(l=>l.m.toLocaleString("en")+" m")
+            .attr("x", l=>projection([l.lon,l.lat])[0]).attr("y", l=>projection([l.lon,l.lat])[1]);
+          resize();
+        }).catch(()=>{ d.cLoaded = false; });
+      });
+    }
+  }
+
+  // Height lines (contours) from ETOPO 2022
+  fetch("contours.json").then(r=>r.json()).then(fc=>{
+    gCtr.selectAll("path").data(fc.features).join("path").attr("class", d=>"ctr m"+d.properties.m).attr("d", path);
+    const lab = fc.features.filter(f=>f.geometry.coordinates.length>=10).map(f=>{
+      const c = f.geometry.coordinates[Math.floor(f.geometry.coordinates.length/2)];
+      return {m:f.properties.m, lon:c[0], lat:c[1]};
+    });
+    gCLbl.selectAll("text").data(lab).join("text").attr("class","clbl").attr("text-anchor","middle").text(d=>d.m.toLocaleString("en")+" m");
+    placeContourLabels(); resize();
+  }).catch(()=>{});
+  function placeContourLabels(){
+    gCLbl.selectAll("text").attr("x", d=>projection([d.lon,d.lat])[0]).attr("y", d=>projection([d.lon,d.lat])[1]);
+  }
+
+  // Rivers
+  fetch("rivers.json").then(r=>r.json()).then(fc=>{
+    gRiver.selectAll("path").data(fc.features).join("path").attr("class","river").attr("d", path);
+    const anchors = fc.features.map(f=>{
+      const longest = f.geometry.coordinates.reduce((a,b)=> b.length>a.length ? b : a);
+      const c = longest[Math.floor(longest.length/2)];
+      return {name:f.properties.name, lon:c[0], lat:c[1]};
+    });
+    gRLbl.selectAll("text").data(anchors).join("text").attr("class","rlbl").text(d=>d.name);
+    placeRiverLabels(); resize();
+  }).catch(()=>{});
+  function placeRiverLabels(){
+    gRLbl.selectAll("text").attr("x", d=>projection([d.lon,d.lat])[0]).attr("y", d=>projection([d.lon,d.lat])[1])
+      .attr("dx", 4/state.k).attr("dy", -4/state.k);
+  }
+
+  // Mountains
+  MTNS.forEach(m=>{ m.xy = projection([m.lon, m.lat]); });
+  const mtns = gMtn.selectAll("g.mtn").data(MTNS).join("g").attr("class","mtn")
+    .attr("transform", d=>`translate(${d.xy[0]},${d.xy[1]})`)
+    .on("click", (ev,d)=>{ ev.stopPropagation(); openMountain(d); });
+  mtns.append("circle").attr("class","hit").attr("fill","transparent");
+  mtns.append("path").attr("class","tri");
+  mtns.append("text").text(d=>d.name);
+  drawLat();
 
   // Zoom helpers
   function zoomToRegions(list, pad){
@@ -314,6 +520,30 @@
     const sat = w.a ? `<div class="sat"><b>Look</b><span>${esc(w.a)}</span><b>Nose</b><span>${esc(w.nose)}</span><b>Palate</b><span>${esc(w.p)}</span><b>Quality</b><span>${esc(w.q)}</span></div>` : "";
     return `<div class="wine"><div class="wn">${esc(w.n)}</div>${sat}${w.c ? `<div class="wc">${esc(w.c)}</div>`:""}</div>`;
   }
+  const SRC = {class:"From your class notes", mix:"From class, plus general knowledge", gen:"General knowledge, not from class"};
+  function latHTML(d){
+    const a = Math.abs(d.lat), lo = 25, hi = 52, pct = v => ((Math.min(hi,Math.max(lo,v))-lo)/(hi-lo)*100).toFixed(1);
+    const note = a >= 47 ? "Near the cool edge of the wine belt: high acidity and lighter body, unless sun, slopes or shelter help ripening."
+      : a <= 37 ? "Near the hot edge of the wine belt: quality depends on what cools it, like altitude, ocean, fog or cold nights."
+      : "Mid wine belt: the local cooling or warming factors decide the style.";
+    return `<div class="sec"><h3>Latitude</h3><div class="latrow"><span class="latval">${a.toFixed(1)}°${d.lat>=0?"N":"S"}</span>
+      <div class="latbar" aria-hidden="true"><div class="track"></div><div class="beltz" style="left:${pct(30)}%;width:${pct(50)-pct(30)}%"></div>
+      <div class="tk" style="left:${pct(30)}%">30°</div><div class="tk" style="left:${pct(50)}%">50°</div>
+      <div class="dotl" style="left:${pct(a)}%"></div></div></div><div class="latnote">${note}</div></div>`;
+  }
+  function openMountain(m){
+    state.sel = null; pins.classed("sel", false);
+    body.innerHTML = `
+      <h2>${esc(m.name)}</h2>
+      <div class="meta"><span>Mountains / hills</span><span>·</span><span>${Math.abs(m.lat).toFixed(1)}°${m.lat>=0?"N":"S"}</span></div>
+      <div class="sec"><h3>Why it matters for wine</h3><p>${esc(m.why)}</p><div class="srcnote">${SRC[m.src]}</div></div>
+      <button class="reveal" id="mZoom">Zoom in here</button>`;
+    card.classList.add("open"); card.scrollTop = 0;
+    document.getElementById("mZoom").onclick = ()=>{
+      const k = Math.max(state.k, Math.min(40, m.k*2.2));
+      svg.transition().duration(650).call(zoom.transform, d3.zoomIdentity.translate(W/2 - k*m.xy[0], H*0.32 - k*m.xy[1]).scale(k));
+    };
+  }
   function openGrape(name, from){
     const gp = GRAPES[name];
     const list = R.filter(r=>r.grapes.includes(name));
@@ -353,6 +583,8 @@
       <div class="sec"><h3>Grapes</h3><div class="gchips">${grapes}</div></div>
       <div class="sec"><h3>On the label</h3><p>${esc(d.labels)}</p></div>
       <div class="sec"><h3>Remember</h3><p>${esc(d.notes)}</p></div>
+      ${latHTML(d)}
+      ${LAND[d.id] ? `<div class="sec"><h3>Lie of the land</h3><p>${esc(LAND[d.id].t)}</p><div class="srcnote">${SRC[LAND[d.id].src]}</div></div>` : ""}
       ${d.wines.length ? `<details class="acc tasted"><summary>✓ Tasted in class (${d.wines.length})</summary><div class="in">${d.wines.map(wineHTML).join("")}</div></details>` : ""}
       ${(TRAPS[d.id]||[]).length ? `<details class="acc"><summary>Exam traps & tutor tips</summary><div class="in"><ul>${TRAPS[d.id].map(t=>`<li>${esc(t)}</li>`).join("")}</ul></div></details>` : ""}
       ${FOOD[d.id] ? `<details class="acc food"><summary>Food pairing</summary><div class="in"><p><span class="tagg">Works:</span> ${esc(FOOD[d.id].g)}</p>${FOOD[d.id].x && FOOD[d.id].x!=="—" ? `<p><span class="tagg">Avoid:</span> ${esc(FOOD[d.id].x)}</p>`:""}</div></details>` : ""}
@@ -370,6 +602,14 @@
     pins.attr("transform", d=>`translate(${d.xy[0]},${d.xy[1]})`);
     labels.attr("x", d=>d.xy[0]).attr("y", d=>d.xy[1]);
     gLand.selectAll("path").attr("d", path);
+    gBorder.selectAll("path").attr("d", path);
+    gRiver.selectAll("path").attr("d", path);
+    gCtr.selectAll("path").attr("d", path); placeContourLabels();
+    gCtrD.selectAll("path").attr("d", path);
+    gCLblD.selectAll("text").attr("x", l=>projection([l.lon,l.lat])[0]).attr("y", l=>projection([l.lon,l.lat])[1]);
+    placeRelief(); drawLat(); placeRiverLabels();
+    MTNS.forEach(m=>{ m.xy = projection([m.lon, m.lat]); });
+    mtns.attr("transform", d=>`translate(${d.xy[0]},${d.xy[1]})`);
     zoom.translateExtent([[-W*0.25,-H*0.25],[W*1.25,H*1.25]]);
     svg.call(zoom.transform, d3.zoomIdentity);
   });
