@@ -125,6 +125,14 @@
   .latbar .tk{position:absolute;top:16px;font-size:10px;color:var(--muted);transform:translateX(-50%)}
   .latnote{font-size:13px;color:#3d342e;margin-top:6px;line-height:1.4}
   .srcnote{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .gnote{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.4}
+  .xt{width:100%;border-collapse:collapse;font-size:13px;line-height:1.35;margin-top:4px}
+  .xt th,.xt td{text-align:left;padding:6px 6px 6px 0;border-bottom:1px solid var(--line);vertical-align:top}
+  .xt th{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .xt td.n{text-align:right;font-weight:600;white-space:nowrap}
+  .lobar{height:6px;border-radius:3px;background:var(--red);margin-top:4px}
+  .xnote{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.4}
+  @media(max-width:400px){.sub{display:none}}
   .back{border:none;background:none;color:var(--muted);font:500 13px Inter,sans-serif;padding:0;margin-bottom:6px;cursor:pointer}
 </style>
 </head>
@@ -137,6 +145,7 @@
   <div class="toggles">
     <button class="tog" id="tTasted" aria-pressed="false">✓ Tasted</button>
     <button class="tog" id="tQuiz" aria-pressed="false">Quiz me</button>
+    <button class="tog" id="tExam">Exam</button>
   </div>
 </header>
 
@@ -434,6 +443,7 @@
     ["Germany & Alsace", r=>r.country==="Germany"||r.id==="alsace"],
     ["Italy", r=>r.country==="Italy"],
     ["Spain & Portugal", r=>r.country==="Spain"||r.country==="Portugal"],
+    ["Sparkling & fortified", r=>["champagne","prosecco","asti","cava","jerez","douro","tasmania","western-cape"].includes(r.id)],
     ["Tokaj", r=>r.id==="tokaj"],
     ["USA", r=>r.country==="USA"],
     ["Chile & Argentina", r=>r.country==="Chile"||r.country==="Argentina"],
@@ -575,12 +585,12 @@
     }
     const grapes = d.grapes.length
       ? d.grapes.map(gr=>`<button class="chip${state.grape===gr?" on":""}" data-g="${esc(gr)}">${esc(gr)}</button>`).join("")
-      : `<span style="font-size:14px">Not listed in your notes</span>`;
+      : (d.grapeNote ? "" : `<span style="font-size:14px">Not listed in your notes</span>`);
     body.innerHTML = `
       <h2>${esc(d.name)}</h2>
       <div class="meta"><span>${esc(d.country)}</span><span>·</span><span>${esc(d.climate)}</span>
         <span class="stylepill" style="background:${st.c}">${st.label}</span></div>
-      <div class="sec"><h3>Grapes</h3><div class="gchips">${grapes}</div></div>
+      <div class="sec"><h3>Grapes</h3><div class="gchips">${grapes}</div>${d.grapeNote ? `<div class="gnote">${esc(d.grapeNote)}</div>` : ""}</div>
       <div class="sec"><h3>On the label</h3><p>${esc(d.labels)}</p></div>
       <div class="sec"><h3>Remember</h3><p>${esc(d.notes)}</p></div>
       ${latHTML(d)}
@@ -591,6 +601,45 @@
       ${d.grapes.length ? `<div class="sec" style="font-size:12px;color:var(--muted)">Tap a grape for its profile and everywhere it grows.</div>` : ""}`;
     body.querySelectorAll("[data-g]").forEach(b=> b.onclick = ()=> openGrape(b.dataset.g, d));
   }
+
+  // Exam guide (study-notes/07)
+  const LOS = [
+    ["LO1","Vineyard: grape parts, what the vine needs, ripening (sugar up, acid down), climate, latitude 30–50°, labelling terms (PDO/PGI etc.)",5],
+    ["LO2","Winemaking: yeast → alcohol + CO₂, white/red/rosé order, oak (new adds flavour, old doesn't), malo = butter, lees = body + bread, bottle-ageing colour",4],
+    ["LO3","Principal grapes: style, quality and their GIs",19],
+    ["LO4","Regionally important grapes: style, quality and their GIs",12],
+    ["LO5","Sparkling and fortified: how production shapes style",6],
+    ["LO6","Storage, service, food and wine (textbook ch. 3, self-study)",4]];
+  const TEMPS = [["Sweet wines","Well chilled","6–8°C"],["Sparkling","Well chilled","6–10°C"],["Light/medium whites, rosé","Chilled","7–10°C"],["Medium/full oaked whites","Lightly chilled","10–13°C"],["Light reds (Beaujolais, light Pinot)","Lightly chilled","~13°C"],["Medium/full reds","Room temperature","15–18°C"]];
+  const SPK = [["Starts with","Dry base wine","Dry base wine","Grape juice"],["2nd ferment","In the bottle","Sealed tank","None (one, stopped early)"],["Lees","Long (autolysis)","Removed at once","None"],["Taste","Fruit + toast, brioche","Pure fruit","Pure fruit, sweet"],["Examples","Champagne, Cava, Cap Classique, Tasmania","Prosecco","Asti"]];
+  function openExam(){
+    state.sel = null; pins.classed("sel", false);
+    const row = r => `<tr>${r.map((c,i)=>`<td${i===0?' style="color:var(--muted)"':''}>${esc(c)}</td>`).join("")}</tr>`;
+    body.innerHTML = `
+      <h2>Exam guide</h2>
+      <div class="meta"><span>Tuesday 1 December</span><span>·</span><span>50 questions, 60 minutes</span></div>
+      <div class="sec"><h3>Questions per learning outcome</h3>
+        <table class="xt"><tbody>${LOS.map(l=>`<tr><td><b>${l[0]}</b><div style="color:var(--muted)">${esc(l[1])}</div><div class="lobar" style="width:${l[2]/19*100}%"></div></td><td class="n">${l[2]}</td></tr>`).join("")}</tbody></table>
+        <div class="xnote">LO3 + LO4 = 31 of 50 (62%): grapes and regions are the exam. LO6 sounded like 5 in class; the spec says 4 — check p.19 of your copy.</div></div>
+      <div class="sec"><h3>The maths</h3>
+        <table class="xt"><thead><tr><th>Grade</th><th>Score</th><th style="text-align:right">Can miss</th></tr></thead><tbody>
+        <tr><td>Pass 55%</td><td>28/50</td><td class="n">22</td></tr><tr><td>Merit 70%</td><td>35/50</td><td class="n">15</td></tr><tr><td><b>Distinction 85%</b></td><td><b>43/50</b></td><td class="n">7</td></tr></tbody></table>
+        <div class="xnote">One mark each, no negative marking: never leave a blank. Go with your first instinct. Read every word ("old oak", "after fermentation is complete", "pulp").</div></div>
+      <details class="acc"><summary>Serving temperatures (LO6)</summary><div class="in">
+        <table class="xt"><tbody>${TEMPS.map(row).join("")}</tbody></table>
+        <div class="xnote">The paper uses the textbook words. Pinot Grigio = chilled (7–10°C), not 10–13°C. Decant → Vintage Port. Flute for sparkling; reds in a larger glass. Store cool, constant, dark.</div></div></details>
+      <details class="acc"><summary>Sparkling methods (LO5)</summary><div class="in">
+        <table class="xt"><thead><tr><th></th><th>Traditional</th><th>Tank</th><th>Asti</th></tr></thead><tbody>${SPK.map(row).join("")}</tbody></table>
+        <div class="xnote">Traditional order: base wine → sugar + yeast → 2nd ferment (+1–2% abv) → autolysis → riddling (gyropalette) → disgorgement → dosage → cork. NV Champagne 12 months on lees, Cava 9.</div></div></details>
+      <details class="acc"><summary>Fortified: the one rule (LO5)</summary><div class="in">
+        <table class="xt"><tbody>
+          <tr><td style="color:var(--muted)">Spirit added DURING fermentation</td><td>Yeast killed, sugar left → <b>sweet</b> + high alcohol → Port</td></tr>
+          <tr><td style="color:var(--muted)">Spirit added AFTER fermentation</td><td>Wine already dry → <b>dry</b> + higher alcohol → Sherry</td></tr></tbody></table>
+        <div class="xnote">Sherry: Fino ~15% under flor (pale, bread, almond) · Oloroso ~17%, oxidative (walnut, caramel) · Amontillado = both · PX = sun-dried, sweet · Pale Cream = sweetened Fino, Cream = sweetened Oloroso.<br>Port: Ruby (basic) · Reserve Ruby · LBV and Vintage (the only single-year ports) · Tawny (oxidative) · 10/20/30/40 Year = average age · Vintage must be decanted.</div></div></details>
+      <div class="xnote" style="margin-top:12px">From study-notes/07 (final session, 24 Nov). Serving temperatures are the standard Level 2 bands — check them against your textbook table.</div>`;
+    card.classList.add("open"); card.scrollTop = 0;
+  }
+  document.getElementById("tExam").onclick = e => { e.stopPropagation(); openExam(); };
 
   // Resize handling
   window.addEventListener("resize", ()=>{

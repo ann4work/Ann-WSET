@@ -71,6 +71,8 @@ window.LAND = {
   "pfalz":{src:"class", t:"Effectively Alsace on the German side of the same mountains: sheltered and sunny."},
   "piedmont":{src:"gen", t:"Hilly: Barolo and Barbaresco are on the Langhe hills above the Tanaro river, with the Alps on three sides. Autumn fog (nebbia) is often linked to the name Nebbiolo."},
   "veneto":{src:"gen", t:"Valpolicella and Soave are on hills north and east of Verona. The flat Po plain below makes high-volume wine (Pinot Grigio delle Venezie)."},
+  "asti":{src:"gen", t:"Rolling hills around the town of Asti in Piedmont, south of the Tanaro river: the same region as Barolo, Barbaresco and Barbera d'Asti."},
+  "tasmania":{src:"mix", t:"An island south of the mainland at about 41–43°S, cooled by the Southern Ocean. Vineyards sit mainly in the north (Tamar Valley) and the south-east around Hobart."},
   "prosecco":{src:"gen", t:"The best (DOCG) comes from the steep hills of Conegliano–Valdobbiadene. Prosecco DOC also comes from the flat plains."},
   "friuli":{src:"gen", t:"Hills near the Slovenian border, with the Alps to the north. Cooler air keeps whites fresh."},
   "tuscany":{src:"mix", t:"Better wines come from the Apennine slopes. Chianti Classico is hill country, roughly 250–600 m, which keeps Sangiovese's acidity."},
