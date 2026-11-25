@@ -51,6 +51,9 @@
   #legend{max-width:250px;max-height:calc(100% - 60px);overflow-y:auto}
   #legend>div:not(.layers){display:flex;align-items:center;gap:8px;margin:3px 0}
   .sw{width:11px;height:11px;border-radius:50%;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+  .heatpill{display:inline-block;color:#fff;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600}
+  .heatrow{display:flex;align-items:center;gap:8px;margin:3px 0}
+  .heatnote{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.35}
   .swring{width:13px;height:13px;border-radius:50%;border:2px solid var(--tasted)}
   #card{position:fixed;left:0;right:0;bottom:0;max-height:62dvh;overflow-y:auto;background:#fff;border-radius:18px 18px 0 0;
     box-shadow:0 -8px 30px rgba(0,0,0,.15);padding:16px 18px 22px;transform:translateY(105%);transition:transform .25s ease;z-index:10}
@@ -143,6 +146,7 @@
     <div class="sub">WSET L2 · from your course notes</div>
   </div>
   <div class="toggles">
+    <button class="tog" id="tHeat" aria-pressed="false">🌡 Heat</button>
     <button class="tog" id="tTasted" aria-pressed="false">✓ Tasted</button>
     <button class="tog" id="tQuiz" aria-pressed="false">Quiz me</button>
     <button class="tog" id="tExam">Exam</button>
@@ -194,21 +198,53 @@
     sparkling:{label:"Sparkling", c:"var(--sparkling)"},
     fortified:{label:"Fortified", c:"var(--fortified)"}
   };
+  // Heat scale: from each region's climate call in your notes (not latitude)
+  const HEAT = [
+    {v:1,   label:"Cool",          c:"#2b6cb0"},
+    {v:1.5, label:"Cool–moderate", c:"#3fa0bf"},
+    {v:2,   label:"Moderate",      c:"#d9b12c"},
+    {v:2.5, label:"Moderate–warm", c:"#ec8f2f"},
+    {v:3,   label:"Warm",          c:"#dc5b28"},
+    {v:3.5, label:"Warm–hot",      c:"#c0392b"},
+    {v:4,   label:"Hot",           c:"#7f1d1d"}
+  ];
+  function heatOf(r){
+    const s = String(r.climate||"").toLowerCase();
+    let v;
+    if(s.startsWith("cool coast")) v = 2;           // mixed region: averaged
+    else if(s.startsWith("cool–moderate")) v = 1.5;
+    else if(s.startsWith("moderate–warm")) v = 2.5;
+    else if(s.startsWith("warm–hot")) v = 3.5;
+    else if(s.startsWith("cool")) v = 1;
+    else if(s.startsWith("moderate")) v = 2;
+    else if(s.startsWith("warm")) v = 3;
+    else if(s.startsWith("hot")) v = 4;
+    return HEAT.find(h=>h.v===v) || null;
+  }
+  R.forEach(r=>{ r.heat = heatOf(r); });
   const WINE_COUNTRIES = new Set(["France","Germany","Italy","Spain","Portugal","Hungary","United States of America","Chile","Argentina","South Africa","Australia","New Zealand"]);
 
-  const state = { grape:null, tasted:false, quiz:false, sel:null, revealed:false, k:1, t:d3.zoomIdentity };
+  const state = { heat:false, grape:null, tasted:false, quiz:false, sel:null, revealed:false, k:1, t:d3.zoomIdentity };
   const LAYERS = {terrain:true, contours:true, rivers:true, mountains:true, lat:true};
   try{ Object.assign(LAYERS, JSON.parse(localStorage.getItem("wsetLayers")||"{}")); }catch(e){}
 
   // Legend
   const leg = document.getElementById("legend");
-  leg.innerHTML = Object.values(STYLE).map(s=>`<div><span class="sw" style="background:${s.c}"></span>${s.label}</div>`).join("")
+  leg.innerHTML = `<div class="layers" id="legKey" style="border-top:none;margin-top:0;padding-top:0"></div>`
     + `<div><span class="swring"></span>Tasted in class</div>`
     + `<div class="layers"><div class="ltitle">Show on map</div>`
     + [["terrain","Terrain shading and height colours"],["contours","Height lines (contours)"],["mountains","Mountain names"],["rivers","Rivers"],["lat","Latitude lines"]]
         .map(([k,l])=>`<label><input type="checkbox" data-layer="${k}"${LAYERS[k]?" checked":""}>${l}</label>`).join("")
     + `<div class="rule" style="margin-top:8px">Height above sea level</div><div class="hramp"></div><div class="hticks"><span>0</span><span>500</span><span>1,000</span><span>2,000</span><span>3,500+ m</span></div>`
     + `<div class="rule">Zoomed out, heights are averaged over about 9 km, so narrow hills show lower than they are. Zoom in on a wine area and the map switches to about 300 m detail, with height lines every 500 m, then every 100 m as you zoom closer. The gold dashed lines mark 30° and 50°, where most vineyards sit. Tutor's rule of thumb: every 100 m up is about 0.6°C cooler, so altitude can do what latitude does.</div><div class="rule" style="font-size:10.5px">Elevation: NOAA ETOPO 2022; Terrain Tiles on AWS Open Data (from SRTM and other public surveys); Natural Earth.</div></div>`;
+  function drawKey(){
+    const k = document.getElementById("legKey");
+    k.innerHTML = state.heat
+      ? `<div class="ltitle">Heat (climate)</div>` + HEAT.map(h=>`<div class="heatrow"><span class="sw" style="background:${h.c}"></span>${h.label}</div>`).join("")
+        + `<div class="heatnote">From the climate call in your notes for each region, not latitude. Altitude, ocean breezes, fog and rain shadows move a region up or down: Casablanca and Adelaide Hills are cool for their latitude, Alsace is cool but dry and sunny. Sonoma (cool coast, warm inland) shows as moderate.</div>`
+      : Object.values(STYLE).map(s=>`<div class="heatrow"><span class="sw" style="background:${s.c}"></span>${s.label}</div>`).join("");
+  }
+  drawKey();
   leg.querySelectorAll("[data-layer]").forEach(cb=> cb.onchange = ()=>{
     LAYERS[cb.dataset.layer] = cb.checked;
     try{ localStorage.setItem("wsetLayers", JSON.stringify(LAYERS)); }catch(e){}
@@ -244,7 +280,9 @@
     .on("click", (ev,d) => { ev.stopPropagation(); select(d); });
   pins.append("circle").attr("class","hit").attr("fill","transparent");
   pins.filter(d=>d.tasted.length).append("circle").attr("class","ring");
-  pins.append("circle").attr("class","dot").attr("fill", d=>STYLE[d.style].c);
+  pins.append("circle").attr("class","dot");
+  function pinFill(d){ return state.heat && d.heat ? d.heat.c : STYLE[d.style].c; }
+  pins.select(".dot").attr("fill", pinFill);
   const labels = gLbl.selectAll("text").data(R).join("text").attr("class","lbl")
     .attr("x", d=>d.xy[0]).attr("y", d=>d.xy[1]).text(d=>d.name);
 
@@ -510,6 +548,9 @@
   }
 
   const tT = document.getElementById("tTasted"), tQ = document.getElementById("tQuiz");
+  const tH = document.getElementById("tHeat");
+  tH.onclick = ()=>{ state.heat=!state.heat; tH.classList.toggle("on",state.heat); tH.setAttribute("aria-pressed",state.heat);
+    pins.select(".dot").attr("fill", pinFill); drawKey(); if(state.sel) render(state.sel); };
   tT.onclick = ()=>{ state.tasted=!state.tasted; tT.classList.toggle("on",state.tasted); tT.setAttribute("aria-pressed",state.tasted); apply(); };
   tQ.onclick = ()=>{ state.quiz=!state.quiz; tQ.classList.toggle("on",state.quiz); tQ.setAttribute("aria-pressed",state.quiz);
     state.revealed=false; if(state.sel) render(state.sel); apply(); };
@@ -588,7 +629,7 @@
       : (d.grapeNote ? "" : `<span style="font-size:14px">Not listed in your notes</span>`);
     body.innerHTML = `
       <h2>${esc(d.name)}</h2>
-      <div class="meta"><span>${esc(d.country)}</span><span>·</span><span>${esc(d.climate)}</span>
+      <div class="meta"><span>${esc(d.country)}</span><span>·</span>${d.heat ? `<span class="heatpill" style="background:${d.heat.c}">🌡 ${esc(d.heat.label)}</span>` : ""}<span>${esc(d.climate)}</span>
         <span class="stylepill" style="background:${st.c}">${st.label}</span></div>
       <div class="sec"><h3>Grapes</h3><div class="gchips">${grapes}</div>${d.grapeNote ? `<div class="gnote">${esc(d.grapeNote)}</div>` : ""}</div>
       <div class="sec"><h3>On the label</h3><p>${esc(d.labels)}</p></div>
