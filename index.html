@@ -54,6 +54,24 @@
   .heatpill{display:inline-block;color:#fff;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600}
   .heatrow{display:flex;align-items:center;gap:8px;margin:3px 0}
   .heatnote{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.35}
+  .count{flex-wrap:wrap}
+  .count .sp{flex:1}
+  .qb{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 10px;font:600 12px Inter,sans-serif;color:var(--ink);cursor:pointer}
+  .qb.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .tq{font-size:15px;line-height:1.45;margin:10px 0 4px;white-space:pre-line;font-weight:500}
+  .topt{display:block;width:100%;text-align:left;margin-top:8px;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:#fffdf9;font:500 14px/1.35 Inter,sans-serif;color:var(--ink);cursor:pointer}
+  .topt:disabled{cursor:default;opacity:1}
+  .topt.right{background:#e7f4ec;border-color:#7cc29a}
+  .topt.wrongpick{background:#fbe9e7;border-color:#e39a8f}
+  .tres{margin-top:12px;font-size:14px;line-height:1.45}
+  .tres .verdict{font-weight:700;margin-bottom:4px}
+  .tres .verdict.ok{color:var(--tasted)} .tres .verdict.no{color:#b23b2b}
+  .tres ul{margin:6px 0 0;padding-left:18px} .tres li{margin:5px 0;color:var(--muted)} .tres li.mine{color:var(--ink)}
+  .tres h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:10px 0 0;font-weight:600}
+  .tbar{height:6px;border-radius:6px;background:var(--line);margin-top:8px;position:relative;overflow:hidden}
+  .tbar i{position:absolute;left:0;top:0;bottom:0;background:var(--ink);border-radius:6px}
+  .tline{font-size:12px;color:var(--muted);margin-top:4px}
+  .reveal.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
   .swring{width:13px;height:13px;border-radius:50%;border:2px solid var(--tasted)}
   #card{position:fixed;left:0;right:0;bottom:0;max-height:62dvh;overflow-y:auto;background:#fff;border-radius:18px 18px 0 0;
     box-shadow:0 -8px 30px rgba(0,0,0,.15);padding:16px 18px 22px;transform:translateY(105%);transition:transform .25s ease;z-index:10}
@@ -180,6 +198,7 @@
 <script src="regions.js"></script>
 <script src="extras.js"></script>
 <script src="terrain.js"></script>
+<script src="quiz.js"></script>
 <script>
 (function(){
   const R = window.REGIONS;
@@ -224,9 +243,17 @@
   R.forEach(r=>{ r.heat = heatOf(r); });
   const WINE_COUNTRIES = new Set(["France","Germany","Italy","Spain","Portugal","Hungary","United States of America","Chile","Argentina","South Africa","Australia","New Zealand"]);
 
-  const state = { heat:false, grape:null, tasted:false, quiz:false, sel:null, revealed:false, k:1, t:d3.zoomIdentity };
+  const state = { weak:false, heat:false, grape:null, tasted:false, quiz:false, sel:null, revealed:false, k:1, t:d3.zoomIdentity };
   const LAYERS = {terrain:true, contours:true, rivers:true, mountains:true, lat:true};
   try{ Object.assign(LAYERS, JSON.parse(localStorage.getItem("wsetLayers")||"{}")); }catch(e){}
+
+  // Region tests: results kept in this browser only
+  const QUIZ = window.QUIZ||{};
+  let TESTS = {};
+  try{ TESTS = JSON.parse(localStorage.getItem("wsetTests")||"{}")||{}; }catch(e){ TESTS = {}; }
+  function saveTests(){ try{ localStorage.setItem("wsetTests", JSON.stringify(TESTS)); }catch(e){} }
+  function rec(id){ return TESTS[id] || (TESTS[id] = {missed:[]}); }
+  function isWeak(id){ return !!(TESTS[id] && TESTS[id].missed && TESTS[id].missed.length); }
 
   // Legend
   const leg = document.getElementById("legend");
@@ -532,6 +559,7 @@
   function isDim(d){
     if(state.grape && !d.grapes.includes(state.grape)) return true;
     if(state.tasted && !d.tasted.length) return true;
+    if(state.weak && !isWeak(d.id)) return true;
     return false;
   }
   function apply(){
@@ -541,10 +569,14 @@
     const parts = [];
     if(state.grape) parts.push(state.grape);
     if(state.tasted) parts.push("tasted in class");
+    if(state.weak) parts.push("weak spots");
     const cnt = document.getElementById("count");
     cnt.innerHTML = `<span>${n} region${n===1?"":"s"}` + (parts.length ? ` · ${esc(parts.join(" · "))}` : " · all") + (state.quiz ? " · names hidden" : "") + `</span>`
-      + (state.grape && GRAPES[state.grape] ? `<button class="gp" id="gpBtn">${esc(state.grape)} profile ›</button>` : "");
+      + (state.grape && GRAPES[state.grape] ? `<button class="gp" id="gpBtn">${esc(state.grape)} profile ›</button>` : "")
+      + `<span class="sp"></span><button class="qb" id="qView">Test this view</button><button class="qb${state.weak?" on":""}" id="qWeak" aria-pressed="${state.weak}">Weak spots</button>`;
     const gp = document.getElementById("gpBtn"); if(gp) gp.onclick = ()=> openGrape(state.grape);
+    document.getElementById("qView").onclick = testView;
+    document.getElementById("qWeak").onclick = ()=>{ state.weak = !state.weak; apply(); };
   }
 
   const tT = document.getElementById("tTasted"), tQ = document.getElementById("tQuiz");
@@ -634,6 +666,7 @@
       <div class="sec"><h3>Grapes</h3><div class="gchips">${grapes}</div>${d.grapeNote ? `<div class="gnote">${esc(d.grapeNote)}</div>` : ""}</div>
       <div class="sec"><h3>On the label</h3><p>${esc(d.labels)}</p></div>
       <div class="sec"><h3>Remember</h3><p>${esc(d.notes)}</p></div>
+      ${QUIZ[d.id] ? `<button class="reveal" id="testBtn">Test me · ${QUIZ[d.id].length} questions${TESTS[d.id] && TESTS[d.id].last!=null ? ` · last ${TESTS[d.id].last}/${QUIZ[d.id].length}` : ""}</button>` : ""}
       ${latHTML(d)}
       ${LAND[d.id] ? `<div class="sec"><h3>Lie of the land</h3><p>${esc(LAND[d.id].t)}</p><div class="srcnote">${SRC[LAND[d.id].src]}</div></div>` : ""}
       ${d.wines.length ? `<details class="acc tasted"><summary>✓ Tasted in class (${d.wines.length})</summary><div class="in">${d.wines.map(wineHTML).join("")}</div></details>` : ""}
@@ -641,6 +674,89 @@
       ${FOOD[d.id] ? `<details class="acc food"><summary>Food pairing</summary><div class="in"><p><span class="tagg">Works:</span> ${esc(FOOD[d.id].g)}</p>${FOOD[d.id].x && FOOD[d.id].x!=="—" ? `<p><span class="tagg">Avoid:</span> ${esc(FOOD[d.id].x)}</p>`:""}</div></details>` : ""}
       ${d.grapes.length ? `<div class="sec" style="font-size:12px;color:var(--muted)">Tap a grape for its profile and everywhere it grows.</div>` : ""}`;
     body.querySelectorAll("[data-g]").forEach(b=> b.onclick = ()=> openGrape(b.dataset.g, d));
+    const tb = document.getElementById("testBtn");
+    if(tb) tb.onclick = ()=> startTest(shuffle(QUIZ[d.id].map((_,i)=>({rid:d.id, qi:i}))), d.name, d);
+  }
+
+  // ---- Region tests ----
+  function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+  let T = null;
+  function startTest(items, title, region){
+    T = {items, i:0, score:0, title, region, missed:[]};
+    card.classList.add("open");
+    showQ();
+  }
+  function regionName(id){ const r = R.find(x=>x.id===id); return r ? r.name : id; }
+  function showQ(){
+    const it = T.items[T.i], q = QUIZ[it.rid][it.qi];
+    const opts = [q.a, ...q.w.map(x=>x[0])];
+    const shown = q.fixed ? opts.slice().sort() : shuffle(opts);
+    body.innerHTML = `
+      <button class="back" id="tBack">‹ ${T.region ? "Back to " + esc(T.region.name) : "Stop test"}</button>
+      <h2>${esc(T.title)}</h2>
+      <div class="meta"><span>Question ${T.i+1} of ${T.items.length}</span><span>·</span><span>${esc(q.lo)}</span>${T.region ? "" : `<span>·</span><span>${esc(regionName(it.rid))}</span>`}</div>
+      <div class="tq">${esc(q.q)}</div>
+      ${shown.map((o,k)=>`<button class="topt" data-k="${k}">${esc(o)}</button>`).join("")}
+      <div id="tRes"></div>`;
+    card.scrollTop = 0;
+    document.getElementById("tBack").onclick = endTestEarly;
+    body.querySelectorAll(".topt").forEach(b=> b.onclick = ()=> answer(shown[+b.dataset.k], q, it, shown));
+  }
+  function answer(pick, q, it, shown){
+    const ok = pick === q.a;
+    body.querySelectorAll(".topt").forEach((b,k)=>{
+      b.disabled = true;
+      if(shown[k] === q.a) b.classList.add("right");
+      else if(shown[k] === pick) b.classList.add("wrongpick");
+    });
+    const r = rec(it.rid);
+    r.missed = (r.missed||[]).filter(x=>x!==it.qi);
+    if(ok) T.score++; else { r.missed.push(it.qi); T.missed.push(it); }
+    saveTests();
+    const last = T.i === T.items.length-1;
+    document.getElementById("tRes").innerHTML = `
+      <div class="tres">
+        <div class="verdict ${ok?"ok":"no"}">${ok ? "✓ Right" : "✗ Not quite. The answer is: " + esc(q.a)}</div>
+        <div>${esc(q.why)}</div>
+        <h4>Why the others are wrong</h4>
+        <ul>${q.w.map(([o,y])=>`<li class="${o===pick?"mine":""}"><b>${esc(o)}</b>: ${esc(y)}</li>`).join("")}</ul>
+        ${q.src ? `<div class="tline">Source: ${esc(q.src)}</div>` : ""}
+      </div>
+      <button class="reveal" id="tNext">${last ? "See my score" : "Next question"}</button>`;
+    document.getElementById("tNext").onclick = ()=>{ if(last) finishTest(); else { T.i++; showQ(); } };
+  }
+  function finishTest(){
+    const n = T.items.length, pct = Math.round(T.score/n*100);
+    if(T.region){ rec(T.region.id).last = T.score; saveTests(); }
+    const verdict = pct >= 85 ? "At distinction level." : pct >= 70 ? "Merit level. Have another go at the misses." : "Below merit. Read the notes for this one, then try again.";
+    body.innerHTML = `
+      <h2>${esc(T.title)}</h2>
+      <div class="meta"><span>Score</span></div>
+      <div style="font:650 34px Fraunces,Georgia,serif;margin-top:6px">${T.score}/${n} <span style="font-size:20px;color:var(--muted)">${pct}%</span></div>
+      <div class="tbar"><i style="width:${pct}%"></i></div>
+      <div class="tline">The distinction line is 85%. ${esc(verdict)}</div>
+      ${T.missed.length ? `<div class="sec"><h3>To review</h3><ul style="margin:0;padding-left:18px;font-size:14px;line-height:1.45">${T.missed.map(m=>`<li>${T.region ? "" : esc(regionName(m.rid)) + ": "}${esc(QUIZ[m.rid][m.qi].q.split("\n")[0])}</li>`).join("")}</ul></div>` : ""}
+      <button class="reveal" id="tAgain">Try again</button>
+      <button class="reveal ghost" id="tDone">${T.region ? "Back to " + esc(T.region.name) : "Close"}</button>
+      <div class="tline" style="margin-top:10px">Regions where you miss a question show under Weak spots until you get it right.</div>`;
+    card.scrollTop = 0;
+    const again = T.items, title = T.title, region = T.region;
+    document.getElementById("tAgain").onclick = ()=> startTest(shuffle(again), title, region);
+    document.getElementById("tDone").onclick = ()=>{ const reg = T.region; T = null; if(reg) select(reg); else closeCard(); apply(); };
+    apply();
+  }
+  function endTestEarly(){ const reg = T && T.region; T = null; apply(); if(reg) select(reg); else closeCard(); }
+  function testView(){
+    const t = state.t;
+    const vis = R.filter(d=> QUIZ[d.id] && !isDim(d) && (()=>{ const x = t.applyX(d.xy[0]), y = t.applyY(d.xy[1]); return x>=0 && x<=W && y>=0 && y<=H; })());
+    if(!vis.length){
+      state.sel = null; pins.classed("sel", false);
+      body.innerHTML = `<h2>No regions in view</h2><div class="quizq">Zoom or pan so at least one wine region is on screen, then try again.</div>`;
+      card.classList.add("open"); return;
+    }
+    const pool = vis.flatMap(d=> QUIZ[d.id].map((_,i)=>({rid:d.id, qi:i})));
+    state.sel = null; pins.classed("sel", false);
+    startTest(shuffle(pool).slice(0,10), "Test this view", null);
   }
 
   // Exam guide (study-notes/07)
